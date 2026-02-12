@@ -24,56 +24,36 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-  const checkSession = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
 
-    if (!session) {
-      router.push("/")
-      return
-    }
-
-    await fetchBookmarks()
-    setLoading(false)
-  }
-
-  checkSession()
-
-  const { data: { subscription } } =
-    supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
         router.push("/")
+        return
       }
-    })
 
-  return () => {
-    subscription.unsubscribe()
-  }
-}, [])
+      await fetchBookmarks()
+      setLoading(false)
+    }
 
-  const channel = supabase
-    .channel("realtime-bookmarks")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "bookmarks",
-      },
-      () => fetchBookmarks()
-    )
-    .subscribe()
+    checkSession()
 
-  return () => {
-    subscription.unsubscribe()
-    supabase.removeChannel(channel)
-  }
-}, [])
+    const { data: { subscription } } =
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (!session) {
+          router.push("/")
+        }
+      })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
   const addBookmark = async () => {
     if (!title || !url) return
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
 
     await supabase.from("bookmarks").insert({
       title,
@@ -83,10 +63,12 @@ export default function Dashboard() {
 
     setTitle("")
     setUrl("")
+    fetchBookmarks()
   }
 
   const deleteBookmark = async (id: string) => {
     await supabase.from("bookmarks").delete().eq("id", id)
+    fetchBookmarks()
   }
 
   const logout = async () => {
@@ -117,7 +99,6 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Add Bookmark Form */}
       <div className="mb-8 flex gap-3">
         <input
           type="text"
@@ -143,14 +124,12 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Empty State */}
       {bookmarks.length === 0 && (
         <p className="text-black font-medium">
           No bookmarks yet.
         </p>
       )}
 
-      {/* Bookmark List */}
       {bookmarks.map((bookmark) => (
         <div
           key={bookmark.id}
