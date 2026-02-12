@@ -24,42 +24,46 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+  const checkSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
 
-      if (!user) {
-        router.push("/")
-        return
-      }
-
-      await fetchBookmarks()
-      setLoading(false)
+    if (!session) {
+      router.push("/")
+      return
     }
 
-    checkUser()
+    await fetchBookmarks()
+    setLoading(false)
+  }
 
-    const channel = supabase
-      .channel("realtime-bookmarks")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bookmarks",
-        },
-        () => {
-          fetchBookmarks()
-        }
-      )
-      .subscribe()
+  checkSession()
 
-    return () => {
-      supabase.removeChannel(channel)
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((event, session) => {
+    if (!session) {
+      router.push("/")
     }
-  }, [])
+  })
 
+  const channel = supabase
+    .channel("realtime-bookmarks")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "bookmarks",
+      },
+      () => fetchBookmarks()
+    )
+    .subscribe()
+
+  return () => {
+    subscription.unsubscribe()
+    supabase.removeChannel(channel)
+  }
+}, [])
   const addBookmark = async () => {
     if (!title || !url) return
 
