@@ -38,13 +38,17 @@ export default function Dashboard() {
 
   checkSession()
 
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange((event, session) => {
-    if (!session) {
-      router.push("/")
-    }
-  })
+  const { data: { subscription } } =
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        router.push("/")
+      }
+    })
+
+  return () => {
+    subscription.unsubscribe()
+  }
+}, [])
 
   const channel = supabase
     .channel("realtime-bookmarks")
